@@ -1,19 +1,14 @@
 /*
 	26.09.2016 by Admin :-)
-
-	EL/ROOM/BMP   - BMP data    {temperature;pressure;altitude}
-	EL/ROOM/DHT   - DHT data    {temperature;humidity;heatIndex}
-	EL/CPU/SYSTEM - system data {freeHeap;vcc}
 */
 
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
-#include <PubSubClient.h>
 #include "http_manager.h"
 #include "dht_manager.h"
 #include "bmp_manager.h"
 
-ADC_MODE(ADC_VCC);		// internal ADC
+ADC_MODE(ADC_VCC);    // internal ADC
 
 // DHT
 #define DHT_PIN       13   // pin D7
@@ -25,25 +20,20 @@ ADC_MODE(ADC_VCC);		// internal ADC
 // WIFI and MQTT
 #define SSID          "ThomsonAP"
 #define PASSWORD      "zxcasdqwe"
-#define MQTT_SERVER   "broker.hivemq.com"
-#define MQTT_ID       "qwerty123456"
+// time
+#define ONE_SECOND 1000
+#define ONE_MINUTE 60000
 
 // intervals
-const int amountOfIntervals                      = 3;
-unsigned long previousMillis[amountOfIntervals]  = {0, 0, 0};
+const int amountOfIntervals                      = 1;
+unsigned long previousMillis[amountOfIntervals]  = {0};
 unsigned long currentMillis                      = 0;
-int intervals[amountOfIntervals]                 = {30000, 300000, 900000}; // 30s., 5m. 15m.
+int intervals[amountOfIntervals]                 = {5 * ONE_MINUTE};
 
 // functions
-void callback(char *topic, byte *payload, unsigned int length);
-void reconnect();
-void mqttPublish();
 void httpPost();
-void httpPostSystem();
 
 // network
-WiFiClient wifiClient;
-PubSubClient mqttClient;
 HTTPManager httpm;
 
 // sensors
@@ -59,14 +49,15 @@ void setup() {
 	Serial.begin(115200);
 	delay(50);
 
-	// BMP
+	//BMP
 	if (!bmpm.begin()) {
 		Serial.println("Could not find a valid BMP280 sensor, check wiring!");
 		while (1);
 	}
 
 	// wifi
-	Serial.print("\nConnecting to ");
+	Serial.println("\n--- WiFi ---");
+	Serial.print("Connecting to ");
 	Serial.print(SSID);
 
 	WiFi.begin(SSID, PASSWORD);
@@ -79,102 +70,48 @@ void setup() {
 	Serial.println("\nWiFi connected.");
 	Serial.print("IP address: ");
 	Serial.print(WiFi.localIP());
+	Serial.println();
 
-	// mqtt
-	mqttClient.setClient(wifiClient);
-	mqttClient.setServer(MQTT_SERVER, 1883);
-	mqttClient.setCallback(callback);
+	Serial.println("--- System ---");
+	Serial.printf("getChipId: %d\n", ESP.getChipId());
+	Serial.printf("getCpuFreqMHz: %d\n", ESP.getCpuFreqMHz());
+	Serial.printf("getSdkVersion: %s\n", ESP.getSdkVersion());
+	Serial.printf("getBootVersion: %d\n", ESP.getBootVersion());
+	Serial.printf("getBootMode: %d\n", ESP.getBootMode());
+	Serial.printf("getCycleCount: %u\n", ESP.getCycleCount());
+	Serial.printf("getVcc: %s\n", String(ESP.getVcc() / 1024.0, 2).c_str());
+	Serial.println("--- Memory ---");
+	Serial.printf("getFreeHeap: %u\n", ESP.getFreeHeap());
+	Serial.printf("getSketchSize: %u\n", ESP.getSketchSize());
+	Serial.printf("getFreeSketchSpace: %u\n", ESP.getFreeSketchSpace());
 }
 
 void loop() {
-	if (!mqttClient.connected()) {
-		reconnect();
-	}
-	mqttClient.loop();
-
 	// get time and run intervals
 	currentMillis = millis();
-	for(int i=0; i < amountOfIntervals; i++) {
-		if ((unsigned long)(currentMillis - previousMillis[i]) >= intervals[i]) {
-			if(i==0) { mqttPublish();	}
-			if(i==1) { httpPost();	}
-			if(i==2) { httpPostSystem(); }
+	for (int i = 0; i < amountOfIntervals; i++) {
+		if ((unsigned long)(currentMillis - previousMillis[i]) > intervals[i]) {
+			if (i == 0) { httpPost(); }
 			previousMillis[i] = currentMillis;
 		}
 	}
 }
 
-void reconnect() {
-	while (!mqttClient.connected()) {
-		Serial.print("\nAttempting MQTT connection... ");
-		// Attempt to connect
-		if (mqttClient.connect(MQTT_ID)) {
-			Serial.println("connected");
-
-			// publish
-
-			// resubscribe
-			mqttClient.subscribe("LAB/TEST/DATA");
-		} else {
-			Serial.print("\nfailed, rc=");
-			Serial.print(mqttClient.state());
-			Serial.println(" try again in 5 seconds");
-			// Wait 5 seconds before retrying
-			delay(5000);
-		}
-	}
-}
-
-void callback(char *topic, byte *payload, unsigned int length) {
-	// Serial.print("Message arrived [");
-	// Serial.print(topic);
-	// Serial.print("] ");
-	// for (int i = 0; i < length; i++) {
-	// 	Serial.print((char) payload[i]);
-	// }
-}
-
-void mqttPublish() {
-	// get DHT data and publish
-	if (dhtm.getData(dhtData)) {
-		String dht11 = String(dhtData.temperature, 2) + ";" +
-									 String(dhtData.humidity, 2) + ";" +
-									 String(dhtData.heatIndex, 2);
-		mqttClient.publish("EL/ROOM/DHT", dht11.c_str());
-	}
-
-	// get BMP data and publish
-	bmpm.getData(bmpData, true, 1021);		// true - pressure in mmHg
-	String bmp280 = String(bmpData.temperature, 2) + ";" +
-									String(bmpData.pressure, 2) + ";" +
-									String(bmpData.altitude, 2);
-	mqttClient.publish("EL/ROOM/BMP", bmp280.c_str());
-
-	// get free heap and publish
-	String sys = String(ESP.getFreeHeap()) + ";" + String(ESP.getVcc() / 1024.0, 2);
-	mqttClient.publish("EL/CPU/SYSTEM", sys.c_str());
-}
-
 void httpPost() {
-	// dht11
-	if (dhtm.getData(dhtData)) {
-		String dht11 = "temperature=" + String(dhtData.temperature, 2) +
-								 	 "&humidity=" + String(dhtData.humidity, 2) +
-								 	 "&heat_index=" + String(dhtData.heatIndex, 2);
-		httpm.POST("http://iot-gkdevmaster.rhcloud.com/api/v1/dht11", dht11);
-	}
-
 	// bmp280
 	bmpm.getData(bmpData, true, 1021);		// true - pressure in mmHg
 	String bmp280 = "temperature=" + String(bmpData.temperature, 2) +
 									"&pressure=" + String(bmpData.pressure, 2) +
 									"&altitude=" + String(bmpData.altitude, 2);
 	httpm.POST("http://iot-gkdevmaster.rhcloud.com/api/v1/bmp280", bmp280);
-}
 
-void httpPostSystem() {
-	// system
-	String sys = "free_heap=" + String(ESP.getFreeHeap()) +
-							 "&vcc=" + String(ESP.getVcc() / 1024.0, 2);
-	httpm.POST("http://iot-gkdevmaster.rhcloud.com/api/v1/system", sys);
+	// dht11
+	if (dhtm.getData(dhtData)) {
+		String dht11 = "temperature=" + String(dhtData.temperature, 2) +
+									 "&humidity=" + String(dhtData.humidity, 2) +
+									 "&heat_index=" + String(dhtData.heatIndex, 2);
+		httpm.POST("http://iot-gkdevmaster.rhcloud.com/api/v1/dht11", dht11);
+	} else {
+		Serial.println("Failed to read from DHT sensor!");
+	}
 }

@@ -1,8 +1,6 @@
 #include "dht_manager.h"
 
-DHTManager::DHTManager(int pin, int type) : _dht(pin, type) {
-  _dht.begin();
-}
+DHTManager::DHTManager(int pin, int type) : _dht(pin, type) { _dht.begin(); delay(1000); }
 
 bool DHTManager::getData(DHTData &data, bool isExternalTemperature, float externalTemperature) {
 
