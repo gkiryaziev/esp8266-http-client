@@ -8,7 +8,7 @@
 #include "dht_manager.h"
 #include "bmp_manager.h"
 
-ADC_MODE(ADC_VCC);    // internal ADC
+//ADC_MODE(ADC_VCC);    // internal ADC
 
 // DHT
 #define DHT_PIN       13   // pin D7
@@ -17,7 +17,7 @@ ADC_MODE(ADC_VCC);    // internal ADC
 #define BMP_SDA       12   // pin D6
 #define BMP_SCL       14   // pin D5
 #define BMP_ADDR      0x76 // I2C address
-// WIFI and MQTT
+// WIFI
 #define SSID          "ThomsonAP"
 #define PASSWORD      "zxcasdqwe"
 // time
@@ -28,7 +28,7 @@ ADC_MODE(ADC_VCC);    // internal ADC
 const int amountOfIntervals                      = 1;
 unsigned long previousMillis[amountOfIntervals]  = {0};
 unsigned long currentMillis                      = 0;
-int intervals[amountOfIntervals]                 = {5 * ONE_MINUTE};
+int intervals[amountOfIntervals]                 = {10 * ONE_MINUTE};
 
 // functions
 void httpPost();
@@ -44,6 +44,7 @@ BMPManager bmpm(BMP_SDA, BMP_SCL, BMP_ADDR);
 DHTManager::DHTData dhtData;
 BMPManager::BMPData bmpData;
 
+// first setup
 void setup() {
 	// serial
 	Serial.begin(115200);
@@ -79,24 +80,31 @@ void setup() {
 	Serial.printf("getBootVersion: %d\n", ESP.getBootVersion());
 	Serial.printf("getBootMode: %d\n", ESP.getBootMode());
 	Serial.printf("getCycleCount: %u\n", ESP.getCycleCount());
-	Serial.printf("getVcc: %s\n", String(ESP.getVcc() / 1024.0, 2).c_str());
+	//Serial.printf("getVcc: %s\n", String(ESP.getVcc() / 1024.0, 2).c_str());
 	Serial.println("--- Memory ---");
 	Serial.printf("getFreeHeap: %u\n", ESP.getFreeHeap());
 	Serial.printf("getSketchSize: %u\n", ESP.getSketchSize());
 	Serial.printf("getFreeSketchSpace: %u\n", ESP.getFreeSketchSpace());
+
+	Serial.print("\nFirst POST request ...");
+	httpPost();
+	Serial.println("done.");
 }
 
+// main loop
 void loop() {
 	// get time and run intervals
 	currentMillis = millis();
 	for (int i = 0; i < amountOfIntervals; i++) {
 		if ((unsigned long)(currentMillis - previousMillis[i]) > intervals[i]) {
 			if (i == 0) { httpPost(); }
+			// if (i == 1) { other timer }
 			previousMillis[i] = currentMillis;
 		}
 	}
 }
 
+// POST request
 void httpPost() {
 	// bmp280
 	bmpm.getData(bmpData, true, 1021);		// true - pressure in mmHg
