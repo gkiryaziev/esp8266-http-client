@@ -107,7 +107,7 @@ void loop() {
 // POST request
 void httpPost() {
 	// bmp280
-	bmpm.getData(bmpData, true, 1021);		// true - pressure in mmHg
+	bmpm.getData(bmpData, true, 1016.69);		// true - pressure in mmHg
 	String bmp280 = "temperature=" + String(bmpData.temperature, 2) +
 									"&pressure=" + String(bmpData.pressure, 2) +
 									"&altitude=" + String(bmpData.altitude, 2);
