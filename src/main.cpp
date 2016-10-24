@@ -117,7 +117,8 @@ void httpPost() {
 	if (dhtm.getData(dhtData)) {
 		String dht11 = "temperature=" + String(dhtData.temperature, 2) +
 									 "&humidity=" + String(dhtData.humidity, 2) +
-									 "&heat_index=" + String(dhtData.heatIndex, 2);
+									 "&heat_index=" + String(dhtData.heatIndex, 2) +
+									 "&dew_point=" + String(dhtData.dewPoint, 2);
 		httpm.POST("http://iot-gkdevmaster.rhcloud.com/api/v1/dht11", dht11);
 	} else {
 		Serial.println("Failed to read from DHT sensor!");
