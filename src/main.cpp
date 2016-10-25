@@ -119,7 +119,7 @@ void httpPost() {
 	}
 
 	// bmp280
-	bmpm.getData(bmpData, 1028.53);
+	bmpm.getData(bmpData, 1028.34);
 	String bmp280 = "temperature=" + String(bmpData.temperature, 2) +
 									"&pressure_pa=" + String(bmpData.pressurePa, 2) +
 									"&pressure_mmhg=" + String(bmpData.pressureMmHg, 2) +
