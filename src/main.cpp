@@ -106,12 +106,6 @@ void loop() {
 
 // POST request
 void httpPost() {
-	// bmp280
-	bmpm.getData(bmpData, true, 1016.69);		// true - pressure in mmHg
-	String bmp280 = "temperature=" + String(bmpData.temperature, 2) +
-									"&pressure=" + String(bmpData.pressure, 2) +
-									"&altitude=" + String(bmpData.altitude, 2);
-	httpm.POST("http://iot-gkdevmaster.rhcloud.com/api/v1/bmp280", bmp280);
 
 	// dht11
 	if (dhtm.getData(dhtData)) {
@@ -123,4 +117,12 @@ void httpPost() {
 	} else {
 		Serial.println("Failed to read from DHT sensor!");
 	}
+
+	// bmp280
+	bmpm.getData(bmpData, 1016.69);
+	String bmp280 = "temperature=" + String(bmpData.temperature, 2) +
+									"&pressure_pa=" + String(bmpData.pressurePa, 2) +
+									"&pressure_mmhg=" + String(bmpData.pressureMmHg, 2) +
+									"&altitude=" + String(bmpData.altitude, 2);
+	httpm.POST("http://iot-gkdevmaster.rhcloud.com/api/v1/bmp280", bmp280);
 }

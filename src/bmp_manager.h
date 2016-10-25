@@ -14,12 +14,13 @@ private:
 public:
   struct BMPData {
     float temperature;
-    float pressure;
+    float pressurePa;
+    float pressureMmHg;
     float altitude;
   };
   BMPManager(int sda, int scl, uint8_t addr);
   bool begin();
-  void *getData(BMPData &data, bool isPressureInMmHg = false, float seaLevelhPa = 1013.25);
+  void *getData(BMPData &data, float seaLevelhPa = 1013.25);
 };
 
 #endif
