@@ -25,13 +25,14 @@
 #define ONE_MINUTE 60000
 
 // intervals
-const int amountOfIntervals                      = 1;
-unsigned long previousMillis[amountOfIntervals]  = {0};
+const int amountOfIntervals                      = 2;
+unsigned long previousMillis[amountOfIntervals]  = {0, 0};
 unsigned long currentMillis                      = 0;
-int intervals[amountOfIntervals]                 = {10 * ONE_MINUTE};
+int intervals[amountOfIntervals]                 = {7 * ONE_MINUTE, 10 * ONE_MINUTE};
 
 // functions
-void httpPost();
+void httpDHT11Post();
+void httpBMP280Post();
 
 // network
 HTTPManager httpm;
@@ -87,7 +88,8 @@ void setup() {
 	Serial.printf("getFreeSketchSpace: %u\n", ESP.getFreeSketchSpace());
 
 	Serial.print("\nFirst POST request ...");
-	httpPost();
+	httpDHT11Post();
+	httpBMP280Post();
 	Serial.println("done.");
 }
 
@@ -97,16 +99,15 @@ void loop() {
 	currentMillis = millis();
 	for (int i = 0; i < amountOfIntervals; i++) {
 		if ((unsigned long)(currentMillis - previousMillis[i]) > intervals[i]) {
-			if (i == 0) { httpPost(); }
-			// if (i == 1) { other timer }
+			if (i == 0) { httpDHT11Post(); }
+			if (i == 1) { httpBMP280Post(); }
 			previousMillis[i] = currentMillis;
 		}
 	}
 }
 
-// POST request
-void httpPost() {
-
+// DHT11 get data and POST request
+void httpDHT11Post() {
 	// dht11
 	if (dhtm.getData(dhtData)) {
 		String dht11 = "temperature=" + String(dhtData.temperature, 2) +
@@ -117,7 +118,10 @@ void httpPost() {
 	} else {
 		Serial.println("Failed to read from DHT sensor!");
 	}
+}
 
+// BMP280 get data and POST request
+void httpBMP280Post() {
 	// bmp280
 	bmpm.getData(bmpData, 1028.34);
 	String bmp280 = "temperature=" + String(bmpData.temperature, 2) +

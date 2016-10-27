@@ -2,6 +2,10 @@
 
 This HTTP client written for [ESP8266 NodeMCU](http://nodemcu.com/index_en.html) board with [Arduino core](https://github.com/esp8266/Arduino) in [PlatformIO IDE](http://platformio.org/).
 
+## Schematic
+
+![Schematic](/schematic.png?raw=true "Schematic")
+
 ## Library Dependency
 
 - 1. [DHT sensor library](https://github.com/adafruit/DHT-sensor-library)
