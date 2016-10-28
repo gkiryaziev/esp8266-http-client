@@ -8,7 +8,7 @@
 #include "dht_manager.h"
 #include "bmp_manager.h"
 
-//ADC_MODE(ADC_VCC);    // internal ADC
+ADC_MODE(ADC_VCC);    // internal ADC
 
 // DHT
 #define DHT_PIN       13   // pin D7
@@ -25,10 +25,9 @@
 #define ONE_MINUTE 60000
 
 // intervals
-const int amountOfIntervals                      = 2;
-unsigned long previousMillis[amountOfIntervals]  = {0, 0};
-unsigned long currentMillis                      = 0;
-int intervals[amountOfIntervals]                 = {7 * ONE_MINUTE, 10 * ONE_MINUTE};
+const int amountOfIntervals                      = 1;
+unsigned long previousMillis[amountOfIntervals]  = {0};
+int intervals[amountOfIntervals]                 = {10 * ONE_MINUTE};
 
 // functions
 void httpDHT11Post();
@@ -58,7 +57,7 @@ void setup() {
 	}
 
 	// wifi
-	Serial.println("\n--- WiFi ---");
+	Serial.println("\n\n--- WiFi ---");
 	Serial.print("Connecting to ");
 	Serial.print(SSID);
 
@@ -81,48 +80,58 @@ void setup() {
 	Serial.printf("getBootVersion: %d\n", ESP.getBootVersion());
 	Serial.printf("getBootMode: %d\n", ESP.getBootMode());
 	Serial.printf("getCycleCount: %u\n", ESP.getCycleCount());
-	//Serial.printf("getVcc: %s\n", String(ESP.getVcc() / 1024.0, 2).c_str());
+	Serial.printf("getVcc: %s\n", String(ESP.getVcc() / 1024.0, 2).c_str());
 	Serial.println("--- Memory ---");
 	Serial.printf("getFreeHeap: %u\n", ESP.getFreeHeap());
 	Serial.printf("getSketchSize: %u\n", ESP.getSketchSize());
 	Serial.printf("getFreeSketchSpace: %u\n", ESP.getFreeSketchSpace());
 
 	Serial.print("\nFirst POST request ...");
-	httpDHT11Post();
 	httpBMP280Post();
+	httpDHT11Post();
 	Serial.println("done.");
 }
 
 // main loop
 void loop() {
 	// get time and run intervals
-	currentMillis = millis();
 	for (int i = 0; i < amountOfIntervals; i++) {
-		if ((unsigned long)(currentMillis - previousMillis[i]) > intervals[i]) {
-			if (i == 0) { httpDHT11Post(); }
-			if (i == 1) { httpBMP280Post(); }
-			previousMillis[i] = currentMillis;
+		if ((unsigned long)(millis() - previousMillis[i]) >= intervals[i]) {
+			previousMillis[i] = millis();
+			if (i == 0) { httpBMP280Post(); httpDHT11Post(); }
+			//if (i == 1) { httpBMP280Post(); }
 		}
 	}
 }
 
 // DHT11 get data and POST request
 void httpDHT11Post() {
-	// dht11
-	if (dhtm.getData(dhtData)) {
-		String dht11 = "temperature=" + String(dhtData.temperature, 2) +
-									 "&humidity=" + String(dhtData.humidity, 2) +
-									 "&heat_index=" + String(dhtData.heatIndex, 2) +
-									 "&dew_point=" + String(dhtData.dewPoint, 2);
-		httpm.POST("http://iot-gkdevmaster.rhcloud.com/api/v1/dht11", dht11);
-	} else {
-		Serial.println("Failed to read from DHT sensor!");
+	bool ok = false;
+	int count = 0;
+
+	while (!ok) {
+		if (count >= 5) {
+			Serial.println("Failed to read from DHT sensor after 5 attempts!");
+			return;
+		}
+
+		count++;
+		ok = dhtm.getData(dhtData);
+
+		if(!ok) {
+			delay(2000);
+		}
 	}
+
+	String dht11 = "temperature=" + String(dhtData.temperature, 2) +
+								 "&humidity=" + String(dhtData.humidity, 2) +
+								 "&heat_index=" + String(dhtData.heatIndex, 2) +
+								 "&dew_point=" + String(dhtData.dewPoint, 2);
+	httpm.POST("http://iot-gkdevmaster.rhcloud.com/api/v1/dht11", dht11);
 }
 
 // BMP280 get data and POST request
 void httpBMP280Post() {
-	// bmp280
 	bmpm.getData(bmpData, 1028.34);
 	String bmp280 = "temperature=" + String(bmpData.temperature, 2) +
 									"&pressure_pa=" + String(bmpData.pressurePa, 2) +

@@ -2,7 +2,6 @@
 
 DHTManager::DHTManager(int pin, int type) : _dht(pin, type) {
   _dht.begin();
-  delay(200);
 }
 
 // get data and store to struct
